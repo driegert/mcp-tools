@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 from marker.converters.pdf import PdfConverter
@@ -12,7 +11,7 @@ model_artifact_dict = create_model_dict()
 
 
 @mcp.tool()
-def convert_pdf_to_text(file_path: str, force_ocr: bool=True):
+def convert_pdf_to_md(file_path: str, force_ocr: bool=True):
   """
   Converts a PDF into markdown with extracted equations in LaTeX format, images, and a JSON metadata file. 
 
@@ -55,17 +54,20 @@ def convert_pdf_to_text(file_path: str, force_ocr: bool=True):
     renderer=marker_config_parser.get_renderer()
   )
 
-  rendered = converter(pdf_path)
+  rendered = converter(str(pdf_path))
 
   # convert the PDF to text, metadata and images
   text, metadata, images = text_from_rendered(rendered)
+
+  ## DEBUGGING: print out the metadata and image info
+  print(f"Metadata extracted from PDF: {type(metadata)}")
 
   # write converted content to the output directory
   output_md = output_dir.joinpath(pdf_name).with_suffix('.md')
   output_meta = output_dir.joinpath(pdf_name + '_meta.json')
 
   output_md.write_text(text)
-  output_meta.write_text(json.dumps(metadata, indent=2))
+  output_meta.write_text(metadata)
 
   for image_name, image_obj in images.items():
     image_obj.save(output_dir / image_name)
@@ -81,4 +83,7 @@ def convert_pdf_to_text(file_path: str, force_ocr: bool=True):
 
 
 if __name__ == "__main__":
-  mcp.run(transport="stdio")
+  # mcp.run(transport="stdio")
+  result = convert_pdf_to_md("/home/dave/school_lab/papers/reviews/eco-2025/TJES-2025-0014_Proof_hi.pdf", force_ocr=True)
+  # result = convert_pdf_to_md("/home/dave/school_lab/conferences/ssp2018/latex/paper/DjtDlrSSP2018.pdf", force_ocr=True)
+  print(result)
