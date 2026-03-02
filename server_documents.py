@@ -81,9 +81,5 @@ def convert_pdf_to_md(file_path: str, force_ocr: bool=True):
   return return_info
 
 
-
 if __name__ == "__main__":
-  # mcp.run(transport="stdio")
-  result = convert_pdf_to_md("/home/dave/school_lab/papers/reviews/eco-2025/TJES-2025-0014_Proof_hi.pdf", force_ocr=True)
-  # result = convert_pdf_to_md("/home/dave/school_lab/conferences/ssp2018/latex/paper/DjtDlrSSP2018.pdf", force_ocr=True)
-  print(result)
+  mcp.run(transport="stdio")
