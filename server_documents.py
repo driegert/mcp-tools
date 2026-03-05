@@ -1,24 +1,31 @@
+import json
 from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 from marker.converters.pdf import PdfConverter
 from marker.models import create_model_dict
 from marker.output import text_from_rendered
 from marker.config.parser import ConfigParser
-  
+
 mcp = FastMCP(name="Document Processing")
 
-model_artifact_dict = create_model_dict()
+_model_artifact_dict = None
+
+def get_model_dict():
+  global _model_artifact_dict
+  if _model_artifact_dict is None:
+    _model_artifact_dict = create_model_dict()
+  return _model_artifact_dict
 
 
 @mcp.tool()
 def convert_pdf_to_md(file_path: str, force_ocr: bool=True):
   """
-  Converts a PDF into markdown with extracted equations in LaTeX format, images, and a JSON metadata file. 
+  Converts a PDF into markdown with extracted equations in LaTeX format, images, and a JSON metadata file.
 
   Returns the filepath for the markdown file, metadata file, and folder path for location of images.
 
   Use this tool every time the contents of a PDF are required.
-  After conversion, read the .md file for the article content. 
+  After conversion, read the .md file for the article content.
   Images extracted from the PDF will be saved in the same directory and referenced in the markdown.
   Use the describe_image tool to obtain context about any extracted images.
 
@@ -27,16 +34,16 @@ def convert_pdf_to_md(file_path: str, force_ocr: bool=True):
   """
 
   pdf_path = Path(file_path).absolute()
-  
+
   if not pdf_path.exists():
     return f"File does not exist at {pdf_path}."
 
   if not pdf_path.suffix.lower() == ".pdf":
     return f"File does not appear to be a PDF.\nExtension detected was: {pdf_path.suffix.lower()}"
-  
+
   pdf_name = pdf_path.stem
 
-  # create the output directory and images sub directory  
+  # create the output directory and images sub directory
   output_dir = pdf_path.with_suffix('')
   output_dir.mkdir(exist_ok=True)
 
@@ -48,7 +55,7 @@ def convert_pdf_to_md(file_path: str, force_ocr: bool=True):
   marker_config_parser = ConfigParser(marker_config)
 
   converter = PdfConverter(
-    artifact_dict=model_artifact_dict,
+    artifact_dict=get_model_dict(),
     config=marker_config_parser.generate_config_dict(),
     processor_list=marker_config_parser.get_processors(),
     renderer=marker_config_parser.get_renderer()
@@ -59,15 +66,12 @@ def convert_pdf_to_md(file_path: str, force_ocr: bool=True):
   # convert the PDF to text, metadata and images
   text, metadata, images = text_from_rendered(rendered)
 
-  ## DEBUGGING: print out the metadata and image info
-  print(f"Metadata extracted from PDF: {type(metadata)}")
-
   # write converted content to the output directory
   output_md = output_dir.joinpath(pdf_name).with_suffix('.md')
   output_meta = output_dir.joinpath(pdf_name + '_meta.json')
 
   output_md.write_text(text)
-  output_meta.write_text(metadata)
+  output_meta.write_text(json.dumps(metadata, indent=2))
 
   for image_name, image_obj in images.items():
     image_obj.save(output_dir / image_name)
@@ -82,4 +86,4 @@ def convert_pdf_to_md(file_path: str, force_ocr: bool=True):
 
 
 if __name__ == "__main__":
-  mcp.run(transport="stdio")
+  mcp.run(transport="streamable-http", host="127.0.0.1", port=8100)
