@@ -6,7 +6,7 @@ from marker.models import create_model_dict
 from marker.output import text_from_rendered
 from marker.config.parser import ConfigParser
 
-mcp = FastMCP(name="Document Processing")
+mcp = FastMCP(name="Document Processing", host="127.0.0.1", port=8100)
 
 _model_artifact_dict = None
 
@@ -86,4 +86,4 @@ def convert_pdf_to_md(file_path: str, force_ocr: bool=True):
 
 
 if __name__ == "__main__":
-  mcp.run(transport="streamable-http", host="127.0.0.1", port=8100)
+  mcp.run(transport="streamable-http")
