@@ -11,7 +11,7 @@ REMOTE_HOST = "lilbuddy"
 REMOTE_USER = "dave"
 SSH_KEY = Path.home() / ".ssh" / "id_ed25519"
 REMOTE_MCP_DIR = Path("/home/dave/mcp-documents")
-REMOTE_MCP_URL = "http://lilbuddy:8011/mcp"
+REMOTE_MCP_URL = "http://lilbuddy:8020/mcp"
 
 
 async def _run_cmd(*args: str) -> str:
