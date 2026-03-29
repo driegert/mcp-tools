@@ -11,7 +11,7 @@ REMOTE_HOST = "lilbuddy"
 REMOTE_USER = "dave"
 SSH_KEY = Path.home() / ".ssh" / "id_ed25519"
 REMOTE_MCP_DIR = Path("/home/dave/mcp-documents")
-REMOTE_MCP_URL = "http://lilbuddy:8011/mcp"
+REMOTE_MCP_URL = "http://lilbuddy:8020/mcp"
 
 # Track active jobs: job_id -> {status, local_pdf, remote_pdf, error, result}
 _jobs: dict[str, dict] = {}
@@ -42,14 +42,14 @@ async def _scp_upload(local_path: Path) -> Path:
     return REMOTE_MCP_DIR / local_path.name
 
 
-async def _call_remote_tool(remote_pdf_path: Path, force_ocr: bool) -> str:
+async def _call_remote_tool(remote_pdf_path: Path, force_ocr: bool, mode: str) -> str:
     async with streamable_http_client(REMOTE_MCP_URL) as (read_stream, write_stream, _):
         async with ClientSession(read_stream, write_stream) as session:
             await session.initialize()
             result = await session.call_tool(
                 "convert_pdf_to_md",
-                {"file_path": str(remote_pdf_path), "force_ocr": force_ocr},
-                read_timeout_seconds=timedelta(minutes=10),
+                {"file_path": str(remote_pdf_path), "force_ocr": force_ocr, "mode": mode},
+                read_timeout_seconds=timedelta(minutes=45),
             )
             if result.isError:
                 error_text = " ".join(
@@ -80,7 +80,7 @@ async def _cleanup_remote(remote_pdf_path: Path):
         pass
 
 
-async def _process_job(job_id: str, local_pdf: Path, force_ocr: bool):
+async def _process_job(job_id: str, local_pdf: Path, force_ocr: bool, mode: str):
     """Background task that handles upload, conversion, download, and cleanup."""
     job = _jobs[job_id]
     try:
@@ -88,7 +88,7 @@ async def _process_job(job_id: str, local_pdf: Path, force_ocr: bool):
         job["remote_pdf"] = str(remote_pdf)
         job["status"] = "converting"
 
-        await _call_remote_tool(remote_pdf, force_ocr)
+        await _call_remote_tool(remote_pdf, force_ocr, mode)
         job["status"] = "downloading"
 
         local_output_dir = await _scp_download_results(local_pdf, remote_pdf)
@@ -110,18 +110,28 @@ async def _process_job(job_id: str, local_pdf: Path, force_ocr: bool):
 
 
 @mcp.tool()
-async def convert_pdf_to_md(file_path: str, force_ocr: bool = True) -> str:
+async def convert_pdf_to_md(file_path: str, force_ocr: bool = True, mode: str = "fast") -> str:
     """
-    Starts converting a PDF into markdown with extracted equations in LaTeX format, images, and a JSON metadata file.
+    Starts converting a PDF into markdown, with images and a JSON metadata file.
 
     This tool uploads the PDF to a remote server and begins conversion.
     It returns a job ID immediately. Use get_conversion_result with the job ID to check
     progress and retrieve the converted files once complete.
 
+    mode controls processing depth:
+      - "fast" (default): Extracts text, document structure, equation LaTeX, and tables.
+        Skips all LLM-based processors.
+      - "full": Full processing including LLM-based refinement
+        and image extraction. Use when higher quality output is needed.
+
     force_ocr defaults to True and is recommended for papers containing equations.
     Set force_ocr to False for faster processing of text-only documents.
+    Ignored when mode="fast" (always False).
     """
     global _job_counter
+
+    if mode not in ("fast", "full"):
+        return f"Invalid mode: {mode}. Must be 'fast' or 'full'."
 
     local_pdf = Path(file_path).absolute()
 
@@ -141,7 +151,7 @@ async def convert_pdf_to_md(file_path: str, force_ocr: bool = True) -> str:
         "result": None,
     }
 
-    asyncio.create_task(_process_job(job_id, local_pdf, force_ocr))
+    asyncio.create_task(_process_job(job_id, local_pdf, force_ocr, mode))
 
     return f"Conversion started. Job ID: {job_id}\nUse get_conversion_result with job_id=\"{job_id}\" to check progress."
 
