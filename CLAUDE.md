@@ -27,6 +27,15 @@ Two processing modes via the `mode` parameter:
   Skips LLM-based processors and image extraction.
 - **full** — everything marker-pdf offers, including LLM refinement and image extraction.
 
+## Deployment
+
+The document server runs as a systemd user service on lilbuddy:
+
+```bash
+systemctl --user status document-processing
+systemctl --user restart document-processing
+```
+
 ## Package management
 
 Use `uv`, not pip. The venv is at `.venv/`.
