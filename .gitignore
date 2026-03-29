@@ -1,2 +1,18 @@
 .venv/
 __pycache__/
+*.py[cod]
+*.egg-info/
+
+# Disabled servers (kept locally, not tracked)
+*.disabled
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+
+# Ruff / mypy
+.ruff_cache/
+.mypy_cache/
